@@ -222,24 +222,22 @@ def save_estimator(estimator):
         pickle.dump(estimator, file)
 
 
-# Paso 6.
-# Calcule las metricas de precision, precision balanceada, recall,
-# y f1-score para los conjuntos de entrenamiento y prueba.
-# Guardelas en el archivo files/output/metrics.json. Cada fila
-# del archivo es un diccionario con las metricas de un modelo.
-# Este diccionario tiene un campo para indicar si es el conjunto
-# de entrenamiento o prueba. Por ejemplo:
-#
-# {'dataset': 'train', 'precision': 0.8, 'balanced_accuracy': 0.7, 'recall': 0.9, 'f1_score': 0.85}
-# {'dataset': 'test', 'precision': 0.7, 'balanced_accuracy': 0.6, 'recall': 0.8, 'f1_score': 0.75}
+# Paso 6 Y 7
 
-def calculate_metrics(model, x_train, y_train, x_test, y_test):
-    # Hacer predicciones
+def save_metrics(model, x_train, y_train, x_test, y_test):
+
+    # Predicciones
     y_train_pred = model.predict(x_train)
     y_test_pred = model.predict(x_test)
 
-    # Calcular métricas para el conjunto de entrenamiento
-    metrics = [
+    # Calcular métricas de confusión
+    cm_train = confusion_matrix(y_train, y_train_pred)
+    cm_test = confusion_matrix(y_test, y_test_pred)
+
+
+    # Métricas
+    resultados = [
+        # Métricas train
         {
         'type': 'metrics',
         'dataset': 'train',
@@ -248,6 +246,7 @@ def calculate_metrics(model, x_train, y_train, x_test, y_test):
         'recall': recall_score(y_train, y_train_pred, zero_division=0),
         'f1_score': f1_score(y_train, y_train_pred, zero_division=0)  
         },
+         # Métricas test
         {
         'type': 'metrics',
         'dataset': 'test',
@@ -255,44 +254,36 @@ def calculate_metrics(model, x_train, y_train, x_test, y_test):
         'balanced_accuracy': balanced_accuracy_score(y_test, y_test_pred),
         'recall': recall_score(y_test, y_test_pred, zero_division=0),
         'f1_score': f1_score(y_test, y_test_pred, zero_division=0)
-        }
-    ]
-
-    # Calcular métricas de confusión
-    cm_train = confusion_matrix(y_train, y_train_pred)
-    cm_test = confusion_matrix(y_test, y_test_pred)
-
-    # Crear los diccionarios
-    cm_train_dict = {
+        },
+        # Matriz confusión train
+      {
         "type": "cm_matrix",
         "dataset": "train",
         "true_0": {"predicted_0": int(cm_train[0][0]), "predicted_1": int(cm_train[0][1])},
         "true_1": {"predicted_0": int(cm_train[1][0]), "predicted_1": int(cm_train[1][1])}
-    }
-
-    cm_test_dict = {
+    },
+     # Matriz confusión train
+    {
         "type": "cm_matrix",
         "dataset": "test",
         "true_0": {"predicted_0": int(cm_test[0][0]), "predicted_1": int(cm_test[0][1])},
         "true_1": {"predicted_0": int(cm_test[1][0]), "predicted_1": int(cm_test[1][1])}
     }
+    ]
 
-    return metrics + [cm_train_dict, cm_test_dict]
+    with open("files/output/metrics.json", "w") as file:
+        for item in resultados:
+            json.dump(item, file)
+            f.write("\n")
+
+
+    return resultados
 
 def main():
-    try:
         pipeline = make_pipeline()
         model = make_grid_search(pipeline, x_train, y_train)
         save_estimator(model)
-        resultados = calculate_metrics(model, x_train, y_train, x_test, y_test)
-        os.makedirs("files/output", exist_ok=True)
-        with open("files/output/metrics.json", "w", encoding="utf-8") as f:
-            for item in resultados:
-                json.dump(item, f)
-                f.write("\n")
-
-    except Exception as e:
-        print("FALLÓ:", e)
+        save_metrics(model, x_train, y_train, x_test, y_test)
 
 
 if __name__ == "__main__":
